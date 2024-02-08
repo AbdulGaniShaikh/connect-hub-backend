@@ -1,0 +1,26 @@
+server :
+  port : 8081 #your desired port number
+
+
+spring :
+  mail :
+    host: #smtp host
+    port: #smtp port
+    username: #smtp username
+    password: #smtp password
+    properties.mail.smtp :
+      auth : true
+      starttls :
+        enable : true
+  data :
+    mongodb:
+      host : #mongo host
+      port : #mongo posrt
+      database : social-media
+      username : #mongo username
+      password : #mongodb password
+  servlet :
+    multipart :
+      max-file-size : 10MB
+      max-request-size : 10MB
+      enabled : true
