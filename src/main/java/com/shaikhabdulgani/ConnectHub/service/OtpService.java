@@ -29,6 +29,10 @@ public class OtpService {
         return otp.get();
     }
 
+    public boolean existsById(String userId){
+        return otpRepo.existsById(userId);
+    }
+
     public Otp save(String userId,int otp){
         return otpRepo.save(new Otp(userId,otp,new Date()));
     }

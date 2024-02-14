@@ -13,6 +13,6 @@ import java.util.Optional;
 @EnableMongoRepositories
 public interface FriendRequestRepo extends MongoRepository<FriendRequest,String> {
     Optional<FriendRequest> findBySenderAndReceiver(String sender, String receiver);
-
     Page<FriendRequest> findByReceiver(String receiver, Pageable pageable);
+    long countByReceiver(String receiver);
 }

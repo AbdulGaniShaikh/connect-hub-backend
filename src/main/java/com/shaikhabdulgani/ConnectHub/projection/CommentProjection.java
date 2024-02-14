@@ -3,11 +3,16 @@ package com.shaikhabdulgani.ConnectHub.projection;
 import lombok.Data;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.util.Date;
+
 @Data
 @Document
-public class CommentDto {
+public class CommentProjection {
 
     private String comment;
-    private UserInfo user;
+    private String username;
+    private String userId;
+    private String profileImageId;
+    private Date date;
 
 }

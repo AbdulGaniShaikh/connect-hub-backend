@@ -19,4 +19,8 @@ public interface BookmarkRepo extends MongoRepository<Bookmark,String> {
 
     @Query
     Page<Bookmark> findByUserId(String userId, Pageable pageable);
+
+    boolean existsByUserIdAndPostId(String userId, String postId);
+
+    long countByUserId(String userId);
 }

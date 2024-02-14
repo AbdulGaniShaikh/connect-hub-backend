@@ -5,12 +5,11 @@ import com.shaikhabdulgani.ConnectHub.exception.NotFoundException;
 import com.shaikhabdulgani.ConnectHub.exception.UnauthorizedAccessException;
 import com.shaikhabdulgani.ConnectHub.model.User;
 import com.shaikhabdulgani.ConnectHub.model.UserInfoDetail;
+import com.shaikhabdulgani.ConnectHub.projection.UserProjection;
 import com.shaikhabdulgani.ConnectHub.repo.UserRepo;
-import com.shaikhabdulgani.ConnectHub.service.JwtService;
 import com.shaikhabdulgani.ConnectHub.util.enums.AuthenticationMethod;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -22,7 +21,6 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.Optional;
@@ -59,9 +57,8 @@ public class BasicUserService implements UserDetailsService {
     public User getByEmail(String email) throws NotFoundException {
         Optional<User> user = userRepo.findByEmail(email);
         if (user.isEmpty()){
-            throw new NotFoundException(String.format("user not found by email %s",email));
+            throw new NotFoundException(String.format("User not found by email %s",email));
         }
-        user.get().setPassword(null);
         return user.get();
     }
 
@@ -81,10 +78,10 @@ public class BasicUserService implements UserDetailsService {
     }
 
     public void checkIfUserAlreadyExists(String username, String email) throws AlreadyExistsException {
-        if (userRepo.findByUsername(username).isPresent()){
+        if (userRepo.existsByUsername(username)){
             throw new AlreadyExistsException("username already taken");
         }
-        if (userRepo.findByEmail(email).isPresent()){
+        if (userRepo.existsByEmail(email)){
             throw new AlreadyExistsException("email already present");
         }
     }
@@ -120,7 +117,7 @@ public class BasicUserService implements UserDetailsService {
         }
     }
 
-    public Page<User> searchUser(String username,int pageNumber,int pageSize) {
+    public Page<UserProjection> searchUser(String username, int pageNumber, int pageSize) {
 
         return userRepo.findByUsernameRegex(".*" + username + ".*",PageRequest.of(pageNumber, pageSize));
 
@@ -139,7 +136,7 @@ public class BasicUserService implements UserDetailsService {
     public void checkIfPasswordMatches(User user, String oldPassword) throws UnauthorizedAccessException {
 
         if (!encoder.matches(oldPassword,user.getPassword())){
-            throw new UnauthorizedAccessException("password doesn't match");
+            throw new UnauthorizedAccessException("Password doesn't match");
         }
 
     }

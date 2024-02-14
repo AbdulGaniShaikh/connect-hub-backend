@@ -2,36 +2,40 @@ package com.shaikhabdulgani.ConnectHub.controller;
 
 import com.shaikhabdulgani.ConnectHub.dto.MessageDto;
 import com.shaikhabdulgani.ConnectHub.model.Message;
-import com.shaikhabdulgani.ConnectHub.service.ChatService;
+import com.shaikhabdulgani.ConnectHub.service.MessageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
+/**
+ * Controller class for handling chat-related operations.
+ */
 @Controller
 @RequiredArgsConstructor
+@Slf4j
 public class ChatController {
 
 
-    private final ChatService chatService;
+    private final MessageService messageService;
     private final SimpMessagingTemplate simpMessagingTemplate;
 
-    // Mapped as /app/chat/{userId}
-    @MessageMapping("/chat/{userId}")
-    @SendTo("messages/{userId}")//all user subscribed to this socket will receive message
-    public MessageDto sendPublicMessage(@Payload @Valid MessageDto messageDto) {
-        chatService.saveMessage(messageDto);
-        return messageDto;
-    }
-
+    /**
+     * Handles sending private messages.
+     *
+     * @param messageDto The MessageDto containing message information
+     * @return The sent message
+     */
     @MessageMapping("/private-message")
-    public MessageDto sendPrivateMessage(@Payload @Valid MessageDto messageDto){
-        chatService.saveMessage(messageDto);
-        simpMessagingTemplate.convertAndSendToUser(messageDto.getChatId(),"/private",messageDto);
-        return messageDto;
+    public Message sendPrivateMessage(@Payload @Valid MessageDto messageDto){
+        messageDto.setChatId(messageService.getChatId(messageDto.getSenderId(),messageDto.getReceiverId()));
+        Message message = messageService.saveMessage(messageDto);
+
+        simpMessagingTemplate.convertAndSendToUser(messageDto.getReceiverId(),"/private",message);
+        return message;
     }
 }

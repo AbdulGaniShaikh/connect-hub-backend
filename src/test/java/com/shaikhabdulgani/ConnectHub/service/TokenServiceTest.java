@@ -44,7 +44,7 @@ class TokenServiceTest {
                 Token.builder()
                         .token(UniqueId.generateToken())
                         .userId("userdadasda")
-                        .expiry(new Date(new Date().getTime()- Duration.ofHours(1).toMillis()))
+                        .date(new Date(new Date().getTime()- Duration.ofHours(1).toMillis()))
                         .build();
 
     }

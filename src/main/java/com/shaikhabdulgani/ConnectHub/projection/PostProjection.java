@@ -1,7 +1,6 @@
-package com.shaikhabdulgani.ConnectHub.model;
+package com.shaikhabdulgani.ConnectHub.projection;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
@@ -9,17 +8,21 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.Date;
 
-@Document(collection = "bookmarks")
+@Document
+@Data
 @AllArgsConstructor
 @NoArgsConstructor
-@Data
-@Builder
-public class Bookmark {
+public class PostProjection {
 
     @Id
-    private String bookmarkId;
     private String postId;
+    private String imageId;
+    private String text;
+    private Date createDate;
     private String userId;
-    private Date date;
+    private int totalLikes;
+    private int totalComments;
+    private String username;
+    private String profileImageId;
 
 }

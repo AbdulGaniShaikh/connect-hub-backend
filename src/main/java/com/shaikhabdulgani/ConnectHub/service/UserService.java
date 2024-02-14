@@ -5,7 +5,7 @@ import com.shaikhabdulgani.ConnectHub.exception.*;
 import com.shaikhabdulgani.ConnectHub.model.Otp;
 import com.shaikhabdulgani.ConnectHub.model.Token;
 import com.shaikhabdulgani.ConnectHub.model.User;
-import com.shaikhabdulgani.ConnectHub.util.enums.Relation;
+import com.shaikhabdulgani.ConnectHub.util.DefaultDescription;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -32,6 +32,7 @@ public class UserService {
                 .password(req.getPassword())
                 .totalFriends(0)
                 .totalPost(0)
+                .description(DefaultDescription.getRandomDescription())
                 .lastSeen(new Date())
                 .build();
 
@@ -41,10 +42,27 @@ public class UserService {
         return user;
     }
 
+    public String resendVerificationEmail(String email) throws NotFoundException, ForbiddenException {
+        User user = basicUserService.getByEmail(email);
+        try {
+            Token token = tokenService.getToken(user.getUserId());
+            tokenService.checkIfUserCanAskForToken(token);
+        }catch (NotFoundException ignored){
+
+        }catch (ForbiddenException e){
+            throw new ForbiddenException(e.getMessage());
+        }
+
+        //override old token, generate new token and send it to user
+        generateAndSendToken(user.getUserId(),user.getEmail());
+
+        return "Verification link was sent successfully";
+    }
+
     private void generateAndSendToken(String userId, String email) {
 
         Token token = tokenService.save(userId);
-        emailService.sendVerificationLink(userId,email, token.getToken());
+        emailService.sendVerificationLink(email, token.getToken());
 
     }
 
@@ -77,42 +95,45 @@ public class UserService {
 
     }
 
-    public String verifyUser(String userId, String tokenStr) throws AlreadyExistsException, NotFoundException, TokenExpiredException {
+    public String verifyUser(String email, String tokenStr) throws NotFoundException, TokenExpiredException {
 
-        User user = basicUserService.getById(userId);
+        User user = basicUserService.getByEmail(email);
         if(user.isVerified()){
-            throw new AlreadyExistsException("User is already verified.");
+            return "Verified";
         }
-        Token token = tokenService.getTokenAndVerify(userId,tokenStr);
-        tokenService.checkTokensValidityAndDeleteToken(token,userId);
-        basicUserService.setUserIsVerified(userId);
+        Token token = tokenService.getTokenAndVerify(user.getUserId(),tokenStr);
+        tokenService.isTokenValid(token,user.getUserId());
+        tokenService.deleteToken(user.getUserId());
+        basicUserService.setUserIsVerified(user.getUserId());
         return "Verification Success. Your account is verified now.";
 
     }
 
-    public boolean sendResetOTP(String userId) throws NotFoundException, ForbiddenException {
-        User user = basicUserService.getById(userId);
+    public boolean sendResetOTP(String email) throws NotFoundException, ForbiddenException {
+        User user = basicUserService.getByEmail(email);
 
-        Otp otp = otpService.getOtp(userId);
-        otpService.verifyIfUserCanAskForOTP(otp);
+        Otp otp;
+        if (otpService.existsById(user.getUserId())){
+            otp = otpService.getOtp(user.getUserId());
+            otpService.verifyIfUserCanAskForOTP(otp);
+        }
 
-        otp = otpService.generateAndSave(userId);
-
+        otp = otpService.generateAndSave(user.getUserId());
         emailService.sendResetOtp(user.getEmail(),otp.getOtp());
+
         return true;
     }
 
-    public boolean verifyOTP(String userId, VerifyOtpRequest req) throws NotFoundException, UnauthorizedAccessException, TokenExpiredException {
-        User user = basicUserService.getById(userId);
-
-        Otp otp = otpService.getOtp(userId);
+    public boolean verifyOTP(String email, VerifyOtpRequest req) throws NotFoundException, UnauthorizedAccessException, TokenExpiredException {
+        User user = basicUserService.getByEmail(email);
+        Otp otp = otpService.getOtp(user.getUserId());
 
         if (otp.getOtp()!=req.getOtp()){
-            throw new UnauthorizedAccessException("wrong otp entered.");
+            throw new UnauthorizedAccessException("Wrong OTP entered.");
         }
 
         otpService.verifyIfTokenExpired(otp);
-        otpService.deleteById(userId);
+        otpService.deleteById(user.getUserId());
 
         user.setPassword(req.getNewPassword());
         basicUserService.updateWithPassword(user);
@@ -121,6 +142,7 @@ public class UserService {
 
     public boolean changePassword(String userId, ChangePasswordRequest passwordRequest, String token) throws NotFoundException, UnauthorizedAccessException {
         User user = basicUserService.getUserWithPassword(userId);
+        basicUserService.checkIfUserIsAuthorized(user,token);
         basicUserService.checkIfPasswordMatches(user,passwordRequest.getOldPassword());
 
         user.setPassword(passwordRequest.getNewPassword());

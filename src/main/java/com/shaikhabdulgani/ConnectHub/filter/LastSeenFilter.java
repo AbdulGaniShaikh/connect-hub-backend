@@ -8,6 +8,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -16,6 +18,8 @@ import java.io.IOException;
  * The `LastSeenFilter` class is a filter that updates the last seen timestamp of a user
  * whenever they make any request. It extends the Spring `OncePerRequestFilter`.
  */
+@Component
+@Order(1)
 public class LastSeenFilter extends OncePerRequestFilter {
 
     @Autowired
@@ -39,9 +43,10 @@ public class LastSeenFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         try {
-            basicUserService.updateLastSeen(cookieService.extractJwtCookie(request));
+            basicUserService.updateLastSeen(jwtService.extractUsername(cookieService.extractJwtCookie(request)));
         } catch (Exception e) {
             logger.info(e.getMessage());
         }
+        filterChain.doFilter(request,response);
     }
 }

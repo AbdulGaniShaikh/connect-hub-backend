@@ -13,4 +13,5 @@ public interface LikeRepo extends MongoRepository<Like,String > {
 
     Optional<Like> findByUserIdAndPostId(String userId,String postId);
 
+    boolean existsByUserIdAndPostId(String userId, String postId);
 }

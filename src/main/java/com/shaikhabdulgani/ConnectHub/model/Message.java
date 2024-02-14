@@ -1,6 +1,5 @@
 package com.shaikhabdulgani.ConnectHub.model;
 
-import com.shaikhabdulgani.ConnectHub.util.enums.MessageType;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -25,6 +24,6 @@ public class Message {
     private String message;
     private Date date;
     private boolean seen;
-    private MessageType messageType;
+    private boolean isPost;
 
 }

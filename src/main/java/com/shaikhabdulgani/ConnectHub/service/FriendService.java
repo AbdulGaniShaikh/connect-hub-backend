@@ -8,30 +8,35 @@ import com.shaikhabdulgani.ConnectHub.exception.UnauthorizedAccessException;
 import com.shaikhabdulgani.ConnectHub.model.Friend;
 import com.shaikhabdulgani.ConnectHub.model.FriendRequest;
 import com.shaikhabdulgani.ConnectHub.model.User;
+import com.shaikhabdulgani.ConnectHub.projection.FriendProjection;
+import com.shaikhabdulgani.ConnectHub.projection.FriendRequestProjection;
 import com.shaikhabdulgani.ConnectHub.repo.FriendRepo;
 import com.shaikhabdulgani.ConnectHub.repo.FriendRequestRepo;
+import com.shaikhabdulgani.ConnectHub.util.CustomPage;
 import com.shaikhabdulgani.ConnectHub.util.enums.Relation;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.MongoExpression;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.*;
+import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class FriendService {
 
-    @Autowired
-    private FriendRequestRepo friendRequestRepo;
-
-    @Autowired
-    private FriendRepo friendRepo;
-
-    @Autowired
-    private BasicUserService basicUserService;
+    private final FriendRequestRepo friendRequestRepo;
+    private final FriendRepo friendRepo;
+    private final BasicUserService basicUserService;
+    private final MongoTemplate mongoTemplate;
 
     public void newFriendRequest(FriendRequestData request, String token) throws NotFoundException, UnauthorizedAccessException, AlreadyExistsException {
 
@@ -70,8 +75,8 @@ public class FriendService {
     }
 
 //    @Transactional
-    public void acceptFriendRequest(FriendRequestData requestData, String token) throws NotFoundException, UnauthorizedAccessException {
-        FriendRequest request = getFriendRequest(requestData.getSenderId(),requestData.getReceiverId());
+    public void acceptFriendRequest(String requestId, String token) throws NotFoundException, UnauthorizedAccessException {
+        FriendRequest request = getFriendRequest(requestId);
 
         User receiver = basicUserService.getById(request.getReceiver());
         basicUserService.checkIfUserIsAuthorized(receiver,token);
@@ -108,38 +113,119 @@ public class FriendService {
 
     }
 
-    public void deleteFriendRequest(@Valid FriendRequestData requestData, String token) throws NotFoundException, UnauthorizedAccessException {
-        FriendRequest request = getFriendRequest(requestData.getSenderId(),requestData.getReceiverId());
+    public void deleteFriendRequest(String requestId, String token) throws NotFoundException, UnauthorizedAccessException {
+        FriendRequest request = getFriendRequest(requestId);
         User sender = basicUserService.getById(request.getSender());
         basicUserService.checkIfUserIsAuthorized(sender,token);
 
         friendRequestRepo.deleteById(request.getRequestId());
     }
 
-    public void rejectFriendRequest(@Valid FriendRequestData requestData, String token) throws NotFoundException, UnauthorizedAccessException {
-        FriendRequest request = getFriendRequest(requestData.getSenderId(),requestData.getReceiverId());
+    public void rejectFriendRequest(String requestId, String token) throws NotFoundException, UnauthorizedAccessException {
+        FriendRequest request = getFriendRequest(requestId);
         User receiver = basicUserService.getById(request.getReceiver());
         basicUserService.checkIfUserIsAuthorized(receiver,token);
 
         friendRequestRepo.deleteById(request.getRequestId());
     }
 
-    public Page<Friend> getAllFriends(String userId,String token,int pageNumber,int pageSize) throws NotFoundException, UnauthorizedAccessException {
+    public CustomPage<FriendProjection> getAllFriends(String userId, String token, int pageNumber, int pageSize) throws NotFoundException, UnauthorizedAccessException {
         User user = basicUserService.getById(userId);
-        basicUserService.checkIfUserIsAuthorized(user,token);
 
-        Pageable pageable = PageRequest.of(pageNumber, pageSize);
+        MatchOperation matchOperation = Aggregation
+                .match(Criteria.where("user1").is(userId));
 
-        return friendRepo.findByUser1(userId,pageable);
+        MatchOperation matchOperation1 = Aggregation
+                .match(AggregationExpression.from(MongoExpression.create("'$expr': {'$eq': ['$_id', {'$toObjectId': '$$u_Id'}]}")));
+
+        LookupOperation lookupOperation = LookupOperation.newLookup()
+                .from("users")
+                .let(VariableOperators.Let.ExpressionVariable.newVariable("u_Id").forField("user2"))
+                .pipeline(matchOperation1)
+                .as("user");
+
+        SkipOperation skipOperation = Aggregation.skip((long)pageNumber * pageSize);
+        LimitOperation limitResult = Aggregation.limit(pageSize);
+
+        UnwindOperation unwindUser = Aggregation.unwind("user");
+
+        ProjectionOperation projectionOperation = Aggregation.project()
+                .and("user2").as("userId")
+                .and("user.profileImageId").as("profileImageId")
+                .and("user.email").as("email")
+                .and("user.lastSeen").as("lastSeen")
+                .and("user.username").as("username");
+
+        Aggregation aggregation = Aggregation.newAggregation(
+                matchOperation,
+                skipOperation,
+                limitResult,
+                lookupOperation,
+                unwindUser,
+                projectionOperation
+        );
+
+        List<FriendProjection> result = mongoTemplate.aggregate(aggregation, "friends", FriendProjection.class).getMappedResults();
+
+        CustomPage<FriendProjection> pagedResult = new CustomPage<>();
+        pagedResult.setPageNumber(pageNumber);
+        pagedResult.setPageSize(pageSize);
+        pagedResult.setSize(result.size());
+        pagedResult.setTotalElements((int)friendRepo.countByUser1(userId));
+        pagedResult.setContent(result);
+
+        return pagedResult;
     }
 
-    public Page<FriendRequest> getAllFriendsRequest(String userId,String token,int pageNumber,int pageSize) throws NotFoundException, UnauthorizedAccessException {
+    public CustomPage<FriendRequestProjection> getAllFriendsRequest(String userId,String token,int pageNumber,int pageSize) throws NotFoundException, UnauthorizedAccessException {
         User user = basicUserService.getById(userId);
         basicUserService.checkIfUserIsAuthorized(user,token);
 
-        Pageable pageable = PageRequest.of(pageNumber, pageSize);
+        MatchOperation matchOperation = Aggregation
+                .match(Criteria.where("receiver").is(userId));
 
-        return friendRequestRepo.findByReceiver(userId,pageable);
+        MatchOperation matchOperation1 = Aggregation
+                .match(AggregationExpression.from(MongoExpression.create("'$expr': {'$eq': ['$_id', {'$toObjectId': '$$u_Id'}]}")));
+
+        LookupOperation lookupOperation = LookupOperation.newLookup()
+                .from("users")
+                .let(VariableOperators.Let.ExpressionVariable.newVariable("u_Id").forField("sender"))
+                .pipeline(matchOperation1)
+                .as("user");
+
+        SortOperation sortPosts = Aggregation.sort(Sort.by(Sort.Order.desc("timestamp")));
+        SkipOperation skipOperation = Aggregation.skip((long)pageNumber * pageSize);
+        LimitOperation limitResult = Aggregation.limit(pageSize);
+
+        UnwindOperation unwindUser = Aggregation.unwind("user");
+
+        ProjectionOperation projectionOperation = Aggregation.project()
+                .andInclude("timestamp")
+                .and("sender").as("userId")
+                .and("user.profileImageId").as("profileImageId")
+                .and("user.email").as("email")
+                .and("user.username").as("username");
+
+        Aggregation aggregation = Aggregation.newAggregation(
+                matchOperation,
+                sortPosts,
+                skipOperation,
+                limitResult,
+                lookupOperation,
+                unwindUser,
+                projectionOperation
+        );
+
+        List<FriendRequestProjection> result = mongoTemplate.aggregate(aggregation, "friendRequests", FriendRequestProjection.class).getMappedResults();
+
+        CustomPage<FriendRequestProjection> pagedResult = new CustomPage<>();
+        pagedResult.setPageNumber(pageNumber);
+        pagedResult.setPageSize(pageSize);
+        pagedResult.setSize(result.size());
+        pagedResult.setTotalElements((int)friendRequestRepo.countByReceiver(userId));
+        pagedResult.setContent(result);
+
+        return pagedResult;
     }
 
     public Relation getRelation(String userId, String otherUserId) throws NotFoundException {

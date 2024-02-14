@@ -11,6 +11,8 @@ import com.shaikhabdulgani.ConnectHub.service.UserService;
 import com.shaikhabdulgani.ConnectHub.service.BasicUserService;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.slf4j.SLF4JLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,21 +29,14 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api/auth")
+@RequiredArgsConstructor
+@Slf4j
 public class AuthController {
 
-    Logger logger = LoggerFactory.getLogger(SLF4JLogger.class);
-
-    @Autowired
-    private CookieService cookieService;
-
-    @Autowired
-    private BasicUserService basicUserService;
-
-    @Autowired
-    private UserService userService;
-
-    @Autowired
-    private AuthenticationManager authenticationManager;
+    private final CookieService cookieService;
+    private final BasicUserService basicUserService;
+    private final UserService userService;
+    private final AuthenticationManager authenticationManager;
 
     /**
      * Handles the user login process by authenticating the user's credentials.
@@ -75,11 +70,6 @@ public class AuthController {
         response.addCookie(cookieService.generateUserIdCookie(user.getUserId()));
         user.clearPassword();
         return user;
-    }
-
-    @GetMapping("/test")
-    public String test(){
-        return "testing";
     }
 
     /**
@@ -119,24 +109,65 @@ public class AuthController {
         response.addCookie(cookieService.deleteUserIdCookie());
     }
 
-    @GetMapping("/verify-account/{userId}")
+    /**
+     * Verifies user's email with the provided token.
+     *
+     * @param email The email address to be verified
+     * @param token The verification token
+     * @return An ApiResponse indicating the success or failure of the operation
+     * @throws AlreadyExistsException If the email is already verified
+     * @throws TokenExpiredException If the verification token has expired
+     * @throws NotFoundException If the user with the specified email is not found
+     */
+    @GetMapping("/verify-account/{email}")
     public ApiResponse<String> verifyEmail(
-            @PathVariable String userId,
+            @PathVariable String email,
             @RequestParam String token
     ) throws AlreadyExistsException, TokenExpiredException, NotFoundException {
-        return ApiResponse.success(userService.verifyUser(userId,token));
+        return ApiResponse.success(userService.verifyUser(email,token));
     }
 
-    @PostMapping("/{userId}/forgot-password")
-    public ApiResponse<Boolean> sendResetOTP(@PathVariable String userId) throws UnauthorizedAccessException, NotFoundException, ForbiddenException {
-        return ApiResponse.success(userService.sendResetOTP(userId));
+    /**
+     * Resends the verification email to the user with the specified email address.
+     *
+     * @param email The email address to which the verification email will be resent
+     * @return An ApiResponse indicating the success or failure of the operation
+     * @throws NotFoundException If the user with the specified email is not found
+     * @throws ForbiddenException If resending the verification email is not allowed
+     */
+    @PostMapping("/resend-verification-email/{email}")
+    public ApiResponse<String> resendVerificationEmail(@PathVariable String email) throws NotFoundException, ForbiddenException {
+        return ApiResponse.success(userService.resendVerificationEmail(email));
     }
 
-    @PutMapping("/{userId}/reset-password")
+    /**
+     * Sends a one-time password (OTP) to the user's email for resetting the password.
+     *
+     * @param email The email address for which the OTP will be sent
+     * @return An ApiResponse indicating the success or failure of the operation
+     * @throws NotFoundException If the user with the specified email is not found
+     * @throws ForbiddenException If sending the OTP is not allowed
+     */
+    @PostMapping("/{email}/forgot-password")
+    public ApiResponse<Boolean> sendResetOTP(@PathVariable String email) throws NotFoundException, ForbiddenException {
+        return ApiResponse.success(userService.sendResetOTP(email));
+    }
+
+    /**
+     * Resets the user's password with the provided OTP.
+     *
+     * @param email The email address of the user whose password will be reset
+     * @param req The VerifyOtpRequest containing the OTP and new password
+     * @return An ApiResponse indicating the success or failure of the operation
+     * @throws UnauthorizedAccessException If the user is not authorized to perform the operation
+     * @throws NotFoundException If the user with the specified email is not found
+     * @throws TokenExpiredException If the OTP has expired
+     */
+    @PutMapping("/{email}/reset-password")
     public ApiResponse<Boolean> resetPasswordWithOtp(
-            @PathVariable String userId,
+            @PathVariable String email,
             @RequestBody @Valid VerifyOtpRequest req
     ) throws UnauthorizedAccessException, NotFoundException, TokenExpiredException {
-        return ApiResponse.success(userService.verifyOTP(userId,req));
+        return ApiResponse.success(userService.verifyOTP(email,req));
     }
 }

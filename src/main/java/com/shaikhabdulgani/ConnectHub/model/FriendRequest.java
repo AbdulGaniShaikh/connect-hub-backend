@@ -20,12 +20,12 @@ public class FriendRequest {
     private String requestId;
     private String sender;
     private String receiver;
-    private Date createdOn;
+    private Date timestamp;
 
     public FriendRequest(String sender, String receiver){
         this.sender = sender;
         this.receiver = receiver;
-        createdOn = new Date();
+        timestamp = new Date();
     }
 
 }

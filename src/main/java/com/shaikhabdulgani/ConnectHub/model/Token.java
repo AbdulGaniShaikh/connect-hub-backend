@@ -19,6 +19,6 @@ public class Token {
     @Id
     private String userId;
     private String token;
-    private Date expiry;
+    private Date date;
 
 }

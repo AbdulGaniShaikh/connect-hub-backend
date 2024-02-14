@@ -1,17 +1,19 @@
 package com.shaikhabdulgani.ConnectHub.service;
 
+import com.shaikhabdulgani.ConnectHub.dto.LikedAndBookmarkedDto;
 import com.shaikhabdulgani.ConnectHub.dto.NewComment;
-import com.shaikhabdulgani.ConnectHub.dto.NewPostInfo;
 import com.shaikhabdulgani.ConnectHub.exception.BadRequestException;
 import com.shaikhabdulgani.ConnectHub.exception.NotFoundException;
 import com.shaikhabdulgani.ConnectHub.exception.UnauthorizedAccessException;
 import com.shaikhabdulgani.ConnectHub.model.*;
-import com.shaikhabdulgani.ConnectHub.projection.CommentDto;
-import com.shaikhabdulgani.ConnectHub.projection.Feed;
+import com.shaikhabdulgani.ConnectHub.projection.CommentProjection;
+import com.shaikhabdulgani.ConnectHub.projection.PostProjection;
+import com.shaikhabdulgani.ConnectHub.projection.SavedProjection;
 import com.shaikhabdulgani.ConnectHub.repo.BookmarkRepo;
 import com.shaikhabdulgani.ConnectHub.repo.CommentRepo;
 import com.shaikhabdulgani.ConnectHub.repo.LikeRepo;
 import com.shaikhabdulgani.ConnectHub.repo.PostRepo;
+import com.shaikhabdulgani.ConnectHub.util.CustomPage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -26,11 +28,9 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -49,12 +49,26 @@ public class PostService {
     private final MongoTransactionManager mongoTransactionManager;
     private final CommentRepo commentRepo;
 
-    public Post getPost(String postId) throws NotFoundException {
+    public PostProjection getPost(String postId) throws NotFoundException {
         Optional<Post> post = postRepo.findById(postId);
         if (post.isEmpty()){
             throw new NotFoundException("Post not found by post id: "+postId);
         }
-        return post.get();
+
+        PostProjection postProjection = new PostProjection();
+        User user = basicUserService.getById(post.get().getUserId());
+
+        postProjection.setPostId(post.get().getPostId());
+        postProjection.setImageId(post.get().getImageId());
+        postProjection.setText(post.get().getText());
+        postProjection.setCreateDate(post.get().getCreateDate());
+        postProjection.setUserId(post.get().getUserId());
+        postProjection.setTotalLikes(post.get().getTotalLikes());
+        postProjection.setTotalComments(post.get().getTotalComments());
+
+        postProjection.setUsername(user.getUsername());
+        postProjection.setProfileImageId(user.getProfileImageId());
+        return postProjection;
     }
 
 //    @Transactional
@@ -136,10 +150,10 @@ public class PostService {
     public void bookmark(String postId, String userId, String token) throws NotFoundException, UnauthorizedAccessException {
         User user = basicUserService.getById(userId);
         basicUserService.checkIfUserIsAuthorized(user,token);
-        if (bookmarkRepo.findByUserIdAndPostId(userId,postId).isPresent()){
+        if (bookmarkRepo.existsByUserIdAndPostId(userId,postId)){
             return;
         }
-        bookmarkRepo.save(Bookmark.builder().userId(userId).postId(postId).build());
+        bookmarkRepo.save(Bookmark.builder().userId(userId).postId(postId).date(new Date()).build());
     }
 
     public void removeBookmark(String postId, String userId, String token) throws NotFoundException, UnauthorizedAccessException {
@@ -155,19 +169,84 @@ public class PostService {
     public boolean isBookmarked(String postId, String userId, String token) throws NotFoundException, UnauthorizedAccessException {
         User user = basicUserService.getById(userId);
         basicUserService.checkIfUserIsAuthorized(user,token);
-        Optional<Bookmark> bookmark  = bookmarkRepo.findByUserIdAndPostId(userId,postId);
-        return bookmark.isPresent();
+        return bookmarkRepo.existsByUserIdAndPostId(userId,postId);
     }
 
-    public Page<Bookmark> getAllBookmarkedPost(String userId,String token,int pageNumber,int pageSize) throws NotFoundException, UnauthorizedAccessException {
+    public LikedAndBookmarkedDto isLikedAndBookmarked(String postId, String userId, String token) throws NotFoundException, UnauthorizedAccessException {
         User user = basicUserService.getById(userId);
         basicUserService.checkIfUserIsAuthorized(user,token);
-        Pageable pageable = PageRequest.of(pageNumber, pageSize);
-        return bookmarkRepo.findByUserId(userId,pageable);
+        boolean isLiked  = likeRepo.existsByUserIdAndPostId(userId,postId);
+        boolean isBookmarked  = bookmarkRepo.existsByUserIdAndPostId(userId,postId);
+        log.info(new LikedAndBookmarkedDto(isLiked,isBookmarked).toString());
+        return new LikedAndBookmarkedDto(isLiked,isBookmarked);
+    }
+
+    public CustomPage<SavedProjection> getAllBookmarkedPost(String userId, String token, int pageNumber, int pageSize) throws NotFoundException, UnauthorizedAccessException {
+        User user = basicUserService.getById(userId);
+        basicUserService.checkIfUserIsAuthorized(user,token);
+
+        MatchOperation matchOperation = Aggregation
+                .match(Criteria.where("userId").is(userId));
+
+        MatchOperation postMatch = Aggregation
+                .match(AggregationExpression.from(MongoExpression.create("'$expr': {'$eq': ['$_id', {'$toObjectId': '$$p_Id'}]}")));
+
+        LookupOperation postLookup = LookupOperation.newLookup()
+                .from("posts")
+                .let(VariableOperators.Let.ExpressionVariable.newVariable("p_Id").forField("postId"))
+                .pipeline(postMatch)
+                .as("posts");
+
+        MatchOperation userMatch = Aggregation
+                .match(AggregationExpression.from(MongoExpression.create("'$expr': {'$eq': ['$_id', {'$toObjectId': '$$u_Id'}]}")));
+
+        LookupOperation userLookup = LookupOperation.newLookup()
+                .from("users")
+                .let(VariableOperators.Let.ExpressionVariable.newVariable("u_Id").forField("posts.userId"))
+                .pipeline(userMatch)
+                .as("user");
+
+        SortOperation sortOperation = Aggregation.sort(Sort.by(Sort.Order.desc("date")));
+        SkipOperation skipOperation = Aggregation.skip((long)pageNumber * pageSize);
+        LimitOperation limitResult = Aggregation.limit(pageSize);
+        UnwindOperation postUnwind = Aggregation.unwind("posts");
+        UnwindOperation userUnwind = Aggregation.unwind("user");
+        ProjectionOperation projectionOperation = Aggregation.project()
+                .and("posts.imageId").as("imageId")
+                .and("posts.text").as("text")
+                .and("posts.createDate").as("createDate")
+                .and("posts.userId").as("userId")
+                .and("posts.totalLikes").as("totalLikes")
+                .and("posts.totalComments").as("totalComments")
+                .andInclude("postId")
+                .and("user.username").as("username")
+                .and("user.profileImageId").as("profileImageId");
+        Aggregation aggregation = Aggregation.newAggregation(
+                matchOperation,
+                postLookup,
+                sortOperation,
+                skipOperation,
+                limitResult,
+                postUnwind,
+                userLookup,
+                userUnwind,
+                projectionOperation
+        );
+        List<SavedProjection> result = mongoTemplate.aggregate(aggregation, "bookmarks", SavedProjection.class).getMappedResults();
+        CustomPage<SavedProjection> pagedResult = new CustomPage<>();
+        pagedResult.setPageNumber(pageNumber);
+        pagedResult.setPageSize(pageSize);
+        pagedResult.setSize(result.size());
+        pagedResult.setTotalElements((int)bookmarkRepo.countByUserId(userId));
+        pagedResult.setContent(result);
+        return pagedResult;
     }
 
 //    @Transactional
-    public Comment postComment(String postId, NewComment newComment, String token){
+    public Comment postComment(String postId, NewComment newComment, String token) throws NotFoundException, UnauthorizedAccessException {
+        User user = basicUserService.getById(newComment.getUserId());
+        basicUserService.checkIfUserIsAuthorized(user,token);
+
         Comment comment = Comment
                 .builder()
                 .postId(postId)
@@ -184,44 +263,51 @@ public class PostService {
         return commentRepo.save(comment);
     }
 
-    public List<CommentDto> getComment(String postId, int pageNumber, int pageSize){
+    public CustomPage<CommentProjection> getComment(String postId, int pageNumber, int pageSize){
 
         MatchOperation matchOperation = Aggregation
                 .match(Criteria.where("postId").is(postId));
 
+        MatchOperation matchOperation1 = Aggregation
+                .match(AggregationExpression.from(MongoExpression.create("'$expr': {'$eq': ['$_id', {'$toObjectId': '$$u_Id'}]}")));
+
         LookupOperation lookupOperation = LookupOperation.newLookup()
                 .from("users")
-                .localField("userId")
-                .foreignField("userId")
+                .let(VariableOperators.Let.ExpressionVariable.newVariable("u_Id").forField("userId"))
+                .pipeline(matchOperation1)
                 .as("user");
 
         SortOperation sortOperation = Aggregation.sort(Sort.by(Sort.Order.desc("date")));
         SkipOperation skipOperation = Aggregation.skip((long)pageNumber * pageSize);
         LimitOperation limitResult = Aggregation.limit(pageSize);
+        UnwindOperation unwindOperation = Aggregation.unwind("user");
         ProjectionOperation projectionOperation = Aggregation.project()
                 .andInclude("comment")
-                .andInclude("user.userId")
-                .andInclude("user.username")
-                .andInclude("user.profileImageId")
+                .andInclude("userId")
+                .and("user.username").as("username")
+                .and("user.profileImageId").as("profileImageId")
                 .andInclude("date");
-
-        UnwindOperation unwindOperation = Aggregation.unwind("user");
-
         Aggregation aggregation = Aggregation.newAggregation(
                 matchOperation,
                 lookupOperation,
                 sortOperation,
                 skipOperation,
                 limitResult,
-                projectionOperation,
-                unwindOperation
+                unwindOperation,
+                projectionOperation
         );
-
-        return mongoTemplate.aggregate(aggregation, "comments", CommentDto.class).getMappedResults();
+        List<CommentProjection> result = mongoTemplate.aggregate(aggregation, "comments", CommentProjection.class).getMappedResults();
+        CustomPage<CommentProjection> pagedResult = new CustomPage<>();
+        pagedResult.setPageNumber(pageNumber);
+        pagedResult.setPageSize(pageSize);
+        pagedResult.setSize(result.size());
+        pagedResult.setTotalElements((int)postRepo.countByPostId(postId));
+        pagedResult.setContent(result);
+        return pagedResult;
 
     }
 
-    public List<Feed> getUserFeed(String userId, String token, int pageNumber, int pageSize) throws NotFoundException, UnauthorizedAccessException {
+    public List<PostProjection> getUserFeed(String userId, String token, int pageNumber, int pageSize) throws NotFoundException, UnauthorizedAccessException {
         User user = basicUserService.getById(userId);
         basicUserService.checkIfUserIsAuthorized(user,token);
 
@@ -268,6 +354,6 @@ public class PostService {
                 projectionOperation
         );
 
-        return mongoTemplate.aggregate(aggregation, "friends", Feed.class).getMappedResults();
+        return mongoTemplate.aggregate(aggregation, "friends", PostProjection.class).getMappedResults();
     }
 }

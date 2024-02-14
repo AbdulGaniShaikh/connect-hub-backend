@@ -33,7 +33,7 @@ public class JwtFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         Optional<Cookie> cookie = Optional.empty();
-        if (!request.getRequestURI().substring("/api/auth/".length()).equals("/api/auth/") && request.getCookies()!=null) {
+        if (!request.getRequestURI().startsWith("/ws") && !request.getRequestURI().substring("/api/auth/".length()).equals("/api/auth/") && request.getCookies()!=null) {
             cookie = Arrays
                     .stream(request.getCookies())
                     .filter(cookie1 -> cookie1.getName().equals("token"))

@@ -8,13 +8,13 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.Date;
 
+
 @Document
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Feed {
+public class SavedProjection {
 
-    @Id
     private String postId;
     private String imageId;
     private String text;

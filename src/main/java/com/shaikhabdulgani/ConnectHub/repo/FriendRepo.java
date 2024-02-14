@@ -15,5 +15,5 @@ public interface FriendRepo extends MongoRepository<Friend,String> {
 
     Optional<Friend> findByUser1AndUser2(String user1,String user2);
     Page<Friend> findByUser1(String userId, Pageable pageable);
-
+    long countByUser1(String user1);
 }

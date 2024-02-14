@@ -1,6 +1,7 @@
 package com.shaikhabdulgani.ConnectHub.repo;
 
 import com.shaikhabdulgani.ConnectHub.model.User;
+import com.shaikhabdulgani.ConnectHub.projection.UserProjection;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -121,7 +122,7 @@ class UserRepoTest {
     public void test_findByUsernameRegex_Return2Users() {
 
         String username = ".*" + "teh" + ".*";
-        Page<User> page = userRepo.findByUsernameRegex(username, Pageable.ofSize(10));
+        Page<UserProjection> page = userRepo.findByUsernameRegex(username, Pageable.ofSize(10));
         page.forEach(user -> System.out.println(user.toString()));
         assertThat(page.getTotalElements()).isEqualTo(2);
 
@@ -131,7 +132,7 @@ class UserRepoTest {
     public void test_findByUsernameRegex_Return1Users() {
 
         String username = ".*" + "h2" + ".*";
-        Page<User> page = userRepo.findByUsernameRegex(username, Pageable.ofSize(10));
+        Page<UserProjection> page = userRepo.findByUsernameRegex(username, Pageable.ofSize(10));
         page.forEach(user -> System.out.println(user.toString()));
         assertThat(page.getTotalElements()).isEqualTo(1);
 

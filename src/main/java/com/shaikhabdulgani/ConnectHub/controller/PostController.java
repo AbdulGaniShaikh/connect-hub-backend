@@ -1,27 +1,26 @@
 package com.shaikhabdulgani.ConnectHub.controller;
 
 import com.shaikhabdulgani.ConnectHub.dto.ApiResponse;
+import com.shaikhabdulgani.ConnectHub.dto.LikedAndBookmarkedDto;
 import com.shaikhabdulgani.ConnectHub.dto.NewComment;
-import com.shaikhabdulgani.ConnectHub.dto.NewPostInfo;
 import com.shaikhabdulgani.ConnectHub.exception.BadRequestException;
 import com.shaikhabdulgani.ConnectHub.exception.CookieNotFoundException;
 import com.shaikhabdulgani.ConnectHub.exception.NotFoundException;
 import com.shaikhabdulgani.ConnectHub.exception.UnauthorizedAccessException;
 import com.shaikhabdulgani.ConnectHub.model.Comment;
 import com.shaikhabdulgani.ConnectHub.model.Post;
-import com.shaikhabdulgani.ConnectHub.projection.CommentDto;
+import com.shaikhabdulgani.ConnectHub.projection.CommentProjection;
+import com.shaikhabdulgani.ConnectHub.projection.PostProjection;
 import com.shaikhabdulgani.ConnectHub.service.CookieService;
 import com.shaikhabdulgani.ConnectHub.service.PostService;
+import com.shaikhabdulgani.ConnectHub.util.CustomPage;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
-import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
  * The `PostController` class handles API endpoints related to posts, including creating new posts,
@@ -73,7 +72,7 @@ public class PostController {
      * @throws NotFoundException If the requested post is not found.
      */
     @GetMapping("/{postId}")
-    public ApiResponse<Post> getPost(@PathVariable String postId) throws NotFoundException {
+    public ApiResponse<PostProjection> getPost(@PathVariable String postId) throws NotFoundException {
         return ApiResponse.success(postService.getPost(postId));
     }
 
@@ -193,18 +192,57 @@ public class PostController {
         return ApiResponse.success(postService.isBookmarked(postId,userId, cookieService.extractJwtCookie(request)));
     }
 
+    /**
+     * Checks if a post is liked and bookmarked by a user.
+     *
+     * @param postId The ID of the post
+     * @param userId The ID of the user
+     * @param request The HttpServletRequest object
+     * @return A LikedAndBookmarkedDto containing information about the post's likes and bookmarks
+     * @throws CookieNotFoundException If the JWT cookie is not found
+     * @throws UnauthorizedAccessException If the user is not authorized to perform the operation.
+     * @throws NotFoundException If the user or post is not found
+     */
+    @GetMapping("/{postId}/isLikedAndBookmarked/{userId}")
+    public LikedAndBookmarkedDto isLikedAndBookmarked(
+            @PathVariable String postId,
+            @PathVariable String userId,
+            HttpServletRequest request
+    ) throws CookieNotFoundException, UnauthorizedAccessException, NotFoundException {
+        return postService.isLikedAndBookmarked(postId,userId, cookieService.extractJwtCookie(request));
+    }
+
+    /**
+     * Posts a comment on a post.
+     *
+     * @param postId The ID of the post
+     * @param newComment The NewComment object containing user ID and comment
+     * @param request The HttpServletRequest object
+     * @return The posted comment
+     * @throws CookieNotFoundException If the JWT cookie is not found
+     * @throws UnauthorizedAccessException If the user is not authorized to perform the operation.
+     * @throws NotFoundException If the user or post is not found
+     */
     @PostMapping("/{postId}/comments")
     public Comment postComment(
             @PathVariable String postId,
             @RequestBody @Valid NewComment newComment,
             HttpServletRequest request
-    ) throws CookieNotFoundException {
+    ) throws CookieNotFoundException, UnauthorizedAccessException, NotFoundException {
         return postService.postComment(postId,newComment, cookieService.extractJwtCookie(request));
     }
 
 
+    /**
+     * Retrieves comments for a post.
+     *
+     * @param postId The ID of the post
+     * @param pageNumber The page number for pagination (default value is 0)
+     * @param pageSize The size of each page for pagination (default value is 10)
+     * @return A CustomPage containing comments for the specified post
+     */
     @GetMapping("/{postId}/comments")
-    public List<CommentDto> getPostComments(
+    public CustomPage<CommentProjection> getPostComments(
             @PathVariable String postId,
             @RequestParam(value = "pageNumber",defaultValue = "0",required = false) int pageNumber,
             @RequestParam(value = "pageSize",defaultValue = "10",required = false) int pageSize

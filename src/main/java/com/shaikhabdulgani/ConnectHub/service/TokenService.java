@@ -1,15 +1,14 @@
 package com.shaikhabdulgani.ConnectHub.service;
 
+import com.shaikhabdulgani.ConnectHub.exception.ForbiddenException;
 import com.shaikhabdulgani.ConnectHub.exception.NotFoundException;
 import com.shaikhabdulgani.ConnectHub.exception.TokenExpiredException;
 import com.shaikhabdulgani.ConnectHub.model.Token;
 import com.shaikhabdulgani.ConnectHub.repo.TokenRepo;
 import com.shaikhabdulgani.ConnectHub.util.UniqueId;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.sql.Timestamp;
 import java.time.Duration;
 import java.util.Date;
 import java.util.Optional;
@@ -21,16 +20,16 @@ public class TokenService {
     private final TokenRepo repo;
 
     public Token getToken(String userId) throws NotFoundException {
-        Optional<Token> emailVerification = repo.findById(userId);
-        if (emailVerification.isEmpty()){
+        Optional<Token> token = repo.findById(userId);
+        if (token.isEmpty()){
             throw new NotFoundException("Token not found for userId "+userId);
         }
-        return emailVerification.get();
+        return token.get();
     }
 
     public Token save(String userId){
         Token token = Token.builder()
-                .expiry(new Date())
+                .date(new Date())
                 .userId(userId)
                 .token(UniqueId.generateToken())
                 .build();
@@ -46,12 +45,23 @@ public class TokenService {
         return token;
     }
 
-    public void checkTokensValidityAndDeleteToken(Token token, String userId) throws TokenExpiredException {
-        Date expiry = token.getExpiry();
-        Timestamp currTime = new Timestamp(new Date().getTime() - Duration.ofDays(1).toMillis());
-        if (expiry.before(currTime)) {
-            repo.deleteById(userId);
+    public void isTokenValid(Token token, String userId) throws TokenExpiredException {
+        Date expiry = new Date(token.getDate().getTime()+Duration.ofDays(1).toMillis());
+        Date currTime = new Date();
+        if (currTime.after(expiry)) {
             throw new TokenExpiredException("token expired. please request for new token");
         }
+    }
+
+    public void checkIfUserCanAskForToken(Token token) throws ForbiddenException {
+        Date expiry = new Date(token.getDate().getTime()+Duration.ofMinutes(5).toMillis());
+        Date currTime = new Date();
+        if (currTime.before(expiry)) {
+            throw new ForbiddenException("Cannot send token. You need to wait for 5 min before asking for a new token");
+        }
+    }
+
+    public void deleteToken(String userId) {
+        repo.deleteById(userId);
     }
 }

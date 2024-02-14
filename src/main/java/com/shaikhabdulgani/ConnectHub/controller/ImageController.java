@@ -16,6 +16,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 
+/**
+ * Controller class for handling image-related operations.
+ */
 @RestController
 @RequestMapping("/api/image")
 @RequiredArgsConstructor
@@ -23,16 +26,13 @@ public class ImageController {
 
     private final ImageService imageService;
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.OK)
-    public ApiResponse<String> uploadImage(
-            @RequestParam("image") @Valid MultipartFile image,
-            @RequestParam("userId") String userId
-            ) throws NotFoundException, IOException {
-
-        return new ApiResponse<>(true,imageService.uploadImage(image,userId));
-    }
-
+    /**
+     * Retrieves an image by its ID.
+     *
+     * @param imageId The ID of the image to retrieve
+     * @return A ResponseEntity containing the image data
+     * @throws NotFoundException If the requested image is not found
+     */
     @GetMapping("/{imageId}")
     public ResponseEntity<?> getImage(@PathVariable String imageId) throws NotFoundException {
         Image image = imageService.getImage(imageId);
