@@ -36,6 +36,9 @@ public class ChatController {
         Message message = messageService.saveMessage(messageDto);
 
         simpMessagingTemplate.convertAndSendToUser(messageDto.getReceiverId(),"/private",message);
+        if (!messageDto.getReceiverId().equals(message.getSenderId())) {
+            simpMessagingTemplate.convertAndSendToUser(messageDto.getSenderId(), "/private", message);
+        }
         return message;
     }
 }

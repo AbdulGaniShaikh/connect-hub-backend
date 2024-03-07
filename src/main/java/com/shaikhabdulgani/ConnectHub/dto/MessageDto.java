@@ -1,13 +1,10 @@
 package com.shaikhabdulgani.ConnectHub.dto;
 
-import com.shaikhabdulgani.ConnectHub.util.enums.MessageType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.util.Date;
 
 /**
  * Represents a message data transfer object.

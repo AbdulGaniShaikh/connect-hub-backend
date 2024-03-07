@@ -1,6 +1,7 @@
 package com.shaikhabdulgani.ConnectHub.service;
 
 import com.shaikhabdulgani.ConnectHub.dto.FriendRequestData;
+import com.shaikhabdulgani.ConnectHub.dto.RelationWithId;
 import com.shaikhabdulgani.ConnectHub.dto.UnfriendRequest;
 import com.shaikhabdulgani.ConnectHub.exception.AlreadyExistsException;
 import com.shaikhabdulgani.ConnectHub.exception.NotFoundException;
@@ -14,11 +15,7 @@ import com.shaikhabdulgani.ConnectHub.repo.FriendRepo;
 import com.shaikhabdulgani.ConnectHub.repo.FriendRequestRepo;
 import com.shaikhabdulgani.ConnectHub.util.CustomPage;
 import com.shaikhabdulgani.ConnectHub.util.enums.Relation;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.MongoExpression;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -35,6 +32,7 @@ public class FriendService {
 
     private final FriendRequestRepo friendRequestRepo;
     private final FriendRepo friendRepo;
+    private final UnreadMessageCountService countService;
     private final BasicUserService basicUserService;
     private final MongoTemplate mongoTemplate;
 
@@ -101,7 +99,7 @@ public class FriendService {
     }
 
     public void save(String user1,String user2){
-        friendRepo.save(new Friend(user1,user2));
+        countService.save(friendRepo.save(new Friend(user1,user2)));
     }
 
     public void createFriendshipFromRequest(FriendRequest request){
@@ -129,8 +127,8 @@ public class FriendService {
         friendRequestRepo.deleteById(request.getRequestId());
     }
 
-    public CustomPage<FriendProjection> getAllFriends(String userId, String token, int pageNumber, int pageSize) throws NotFoundException, UnauthorizedAccessException {
-        User user = basicUserService.getById(userId);
+    public CustomPage<FriendProjection> getAllFriends(String userId, int pageNumber, int pageSize) throws NotFoundException, UnauthorizedAccessException {
+        basicUserService.getById(userId);
 
         MatchOperation matchOperation = Aggregation
                 .match(Criteria.where("user1").is(userId));
@@ -228,16 +226,26 @@ public class FriendService {
         return pagedResult;
     }
 
-    public Relation getRelation(String userId, String otherUserId) throws NotFoundException {
+    public RelationWithId getRelation(String userId, String otherUserId) throws NotFoundException {
 
-        User user = basicUserService.getById(otherUserId);
-        if (friendRequestRepo.findBySenderAndReceiver(userId,otherUserId).isPresent())
-            return Relation.FR_SENT;
-        if (friendRequestRepo.findBySenderAndReceiver(otherUserId,userId).isPresent())
-            return Relation.FR_RECEIVED;
+        if (userId.equals(otherUserId))
+            return RelationWithId.self();
+
+        basicUserService.getById(otherUserId);
+        Optional<FriendRequest> request;
+
+        request = friendRequestRepo.findBySenderAndReceiver(userId,otherUserId);
+        if (request.isPresent())
+            return RelationWithId.friendRequestSent(request.get().getRequestId());
+
+        request=friendRequestRepo.findBySenderAndReceiver(otherUserId,userId);
+        if (request.isPresent())
+            return RelationWithId.friendRequestReceived(request.get().getRequestId());
+
         if (friendRepo.findByUser1AndUser2(userId,otherUserId).isPresent())
-            return Relation.FRIENDS;
-        return Relation.NONE;
+            return RelationWithId.friends();
+
+        return RelationWithId.none();
 
     }
 

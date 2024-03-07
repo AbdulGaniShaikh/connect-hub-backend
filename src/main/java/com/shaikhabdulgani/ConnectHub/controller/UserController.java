@@ -2,22 +2,19 @@ package com.shaikhabdulgani.ConnectHub.controller;
 
 import com.shaikhabdulgani.ConnectHub.dto.ApiResponse;
 import com.shaikhabdulgani.ConnectHub.dto.ChangePasswordRequest;
+import com.shaikhabdulgani.ConnectHub.dto.RelationWithId;
 import com.shaikhabdulgani.ConnectHub.dto.UpdateDescription;
 import com.shaikhabdulgani.ConnectHub.exception.CookieNotFoundException;
 import com.shaikhabdulgani.ConnectHub.exception.NotFoundException;
 import com.shaikhabdulgani.ConnectHub.exception.UnauthorizedAccessException;
 import com.shaikhabdulgani.ConnectHub.model.*;
-import com.shaikhabdulgani.ConnectHub.projection.PostProjection;
-import com.shaikhabdulgani.ConnectHub.projection.FriendProjection;
-import com.shaikhabdulgani.ConnectHub.projection.FriendRequestProjection;
-import com.shaikhabdulgani.ConnectHub.projection.SavedProjection;
+import com.shaikhabdulgani.ConnectHub.projection.*;
 import com.shaikhabdulgani.ConnectHub.service.CookieService;
 import com.shaikhabdulgani.ConnectHub.service.FriendService;
 import com.shaikhabdulgani.ConnectHub.service.PostService;
 import com.shaikhabdulgani.ConnectHub.service.UserService;
 import com.shaikhabdulgani.ConnectHub.service.BasicUserService;
 import com.shaikhabdulgani.ConnectHub.util.CustomPage;
-import com.shaikhabdulgani.ConnectHub.util.enums.Relation;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -68,6 +65,11 @@ public class UserController {
         log.info("user is logged in");
     }
 
+    @GetMapping("/{userId}/lastSeen")
+    public LastSeenProjection getLastSeen(@PathVariable String userId){
+        return basicUserService.getLastSeen(userId);
+    }
+
     /**
      * Checks if a user is verified.
      *
@@ -79,8 +81,8 @@ public class UserController {
      * @throws UnauthorizedAccessException If access is unauthorized
      */
     @GetMapping("/{userId}/verified")
-    public ApiResponse<Boolean> isUserVerified(@PathVariable String userId,HttpServletRequest request) throws CookieNotFoundException, NotFoundException, UnauthorizedAccessException {
-        return ApiResponse.success(basicUserService.getUserIsVerified(userId, cookieService.extractJwtCookie(request)));
+    public ApiResponse<Boolean> isUserVerified(@PathVariable String userId,HttpServletRequest request) throws NotFoundException {
+        return ApiResponse.success(basicUserService.getUserIsVerified(userId));
     }
 
     /**
@@ -95,7 +97,7 @@ public class UserController {
      * if old password and new password doesn't match
      * @throws NotFoundException If the requested user is not found
      */
-    @PutMapping("/{userid}/change-password")
+    @PutMapping("/{userId}/change-password")
     public ApiResponse<Boolean> changePassword(
             @PathVariable String userId,
             @RequestBody @Valid ChangePasswordRequest passwordRequest,
@@ -221,7 +223,7 @@ public class UserController {
      * @throws NotFoundException If any of the users are not found
      */
     @GetMapping("/relation/{userId}")
-    public ApiResponse<Relation> getRelationWithOtherUser(
+    public ApiResponse<RelationWithId> getRelationWithOtherUser(
             @PathVariable String userId,
             @RequestParam String otherUserId
     ) throws NotFoundException {
@@ -257,20 +259,17 @@ public class UserController {
      * @param userId The ID of the user whose friends will be retrieved
      * @param pageNumber The page number for pagination (default is 0)
      * @param pageSize The number of friends per page (default is 10)
-     * @param request The HttpServletRequest object to fetch JWT token from cookies
      * @return A CustomPage object containing the user's friends
      * @throws NotFoundException If the user is not found
-     * @throws CookieNotFoundException If the JWT cookie is not found
      * @throws UnauthorizedAccessException If access is unauthorized
      */
     @GetMapping("/{userId}/friends")
     public CustomPage<FriendProjection> getUserFriends(
             @PathVariable String userId,
             @RequestParam(value = "pageNumber",defaultValue = "0",required = false) int pageNumber,
-            @RequestParam(value = "pageSize",defaultValue = "10",required = false) int pageSize,
-            HttpServletRequest request
-    ) throws NotFoundException, CookieNotFoundException, UnauthorizedAccessException {
-        return friendService.getAllFriends(userId, cookieService.extractJwtCookie(request),pageNumber,pageSize);
+            @RequestParam(value = "pageSize",defaultValue = "10",required = false) int pageSize
+    ) throws NotFoundException, UnauthorizedAccessException {
+        return friendService.getAllFriends(userId,pageNumber,pageSize);
     }
 
     /**

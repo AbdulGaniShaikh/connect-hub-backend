@@ -21,11 +21,8 @@ public class JwtAuthEntryPoint implements AuthenticationEntryPoint {
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException {
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        ApiError error = new ApiError(
-                HttpStatus.valueOf(response.getStatus()) ,
-                "Access Denied !! " +
-                        (authException.getMessage().equals("Bad credentials") ? "Username and password doesn't match" : "Bad credentials")
-        );
+        String errorMessage = authException.getMessage().equals("Bad credentials") ? "Username and password doesn't match" : "Token not valid";
+        ApiError error = new ApiError(HttpStatus.valueOf(response.getStatus()) , errorMessage,true);
         response.setContentType("application/json");
         response.getWriter().println(new JSONObject(error));
     }

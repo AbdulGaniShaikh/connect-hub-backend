@@ -4,6 +4,6 @@ public enum Relation {
     NONE,
     FRIENDS,
     FR_RECEIVED,
-    FR_SENT
-
+    FR_SENT,
+    SELF
 }

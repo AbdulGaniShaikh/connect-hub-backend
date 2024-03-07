@@ -9,14 +9,11 @@ import com.shaikhabdulgani.ConnectHub.model.User;
 import com.shaikhabdulgani.ConnectHub.service.CookieService;
 import com.shaikhabdulgani.ConnectHub.service.UserService;
 import com.shaikhabdulgani.ConnectHub.service.BasicUserService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.logging.slf4j.SLF4JLogger;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -67,6 +64,7 @@ public class AuthController {
             throw new UnauthorizedAccessException("user is not authenticated");
         }
         response.addCookie(cookieService.generateJwtCookie(user.getUsername()));
+        response.addCookie(cookieService.generateRefreshTokenCookie(user.getUserId()));
         response.addCookie(cookieService.generateUserIdCookie(user.getUserId()));
         user.clearPassword();
         return user;
@@ -91,6 +89,7 @@ public class AuthController {
         User user = userService.registerUser(signUpDto);
 
         response.addCookie(cookieService.generateJwtCookie(user.getUsername()));
+        response.addCookie(cookieService.generateRefreshTokenCookie(user.getUserId()));
         response.addCookie(cookieService.generateUserIdCookie(user.getUserId()));
 
         return user;
@@ -98,14 +97,15 @@ public class AuthController {
 
     /**
      * Handles user logout by adding cookies with quick expiry and unsetting the
-     * token and userId cookie value in the response.
+     * token,refresh token and user ID cookie value in the response.
      *
      * @param response The HttpServletResponse to add cookies with expiry as now and unsetting the cookie value.
      */
     @PostMapping("/logout")
     @ResponseStatus(HttpStatus.OK)
-    public void logout(HttpServletResponse response){
+    public void logout(HttpServletRequest request, HttpServletResponse response){
         response.addCookie(cookieService.deleteJwtCookie());
+        response.addCookie(cookieService.deleteRefreshTokenCookie(request));
         response.addCookie(cookieService.deleteUserIdCookie());
     }
 
