@@ -177,7 +177,6 @@ public class PostService {
         basicUserService.checkIfUserIsAuthorized(user,token);
         boolean isLiked  = likeRepo.existsByUserIdAndPostId(userId,postId);
         boolean isBookmarked  = bookmarkRepo.existsByUserIdAndPostId(userId,postId);
-        log.info(new LikedAndBookmarkedDto(isLiked,isBookmarked).toString());
         return new LikedAndBookmarkedDto(isLiked,isBookmarked);
     }
 

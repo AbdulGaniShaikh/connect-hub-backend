@@ -1,7 +1,13 @@
 package com.shaikhabdulgani.ConnectHub.filter;
 
+import com.shaikhabdulgani.ConnectHub.exception.CookieNotFoundException;
+import com.shaikhabdulgani.ConnectHub.exception.NotFoundException;
+import com.shaikhabdulgani.ConnectHub.exception.UnauthorizedAccessException;
+import com.shaikhabdulgani.ConnectHub.model.User;
+import com.shaikhabdulgani.ConnectHub.service.CookieService;
 import com.shaikhabdulgani.ConnectHub.service.JwtService;
 import com.shaikhabdulgani.ConnectHub.service.BasicUserService;
+import com.shaikhabdulgani.ConnectHub.service.RefreshTokenService;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.MalformedJwtException;
 import jakarta.servlet.FilterChain;
@@ -9,6 +15,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,42 +29,49 @@ import java.util.Arrays;
 import java.util.Optional;
 
 @Component
+@RequiredArgsConstructor
 public class JwtFilter extends OncePerRequestFilter {
 
-    @Autowired
-    private JwtService jwtService;
-
-    @Autowired
-    private BasicUserService userService;
+    private final JwtService jwtService;
+    private final BasicUserService userService;
+    private final CookieService cookieService;
+    private final RefreshTokenService refreshTokenService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        Optional<Cookie> cookie = Optional.empty();
+//        Optional<Cookie> cookie;
+        int cookieIndex;
         if (!request.getRequestURI().startsWith("/ws") && !request.getRequestURI().substring("/api/auth/".length()).equals("/api/auth/") && request.getCookies()!=null) {
-            cookie = Arrays
-                    .stream(request.getCookies())
-                    .filter(cookie1 -> cookie1.getName().equals("token"))
-                    .findAny();
+//            cookie = Arrays
+//                    .stream(request.getCookies())
+//                    .filter(cookie1 -> cookie1.getName().equals("token"))
+//                    .findAny();
+            cookieIndex = cookieService.indexOf(request,"token");
 
 
             String username = null;
             String token = null;
-            if (cookie.isPresent()) {
-                token = cookie.get().getValue();
+            if (cookieIndex!=-1) {
+                Cookie cookie = request.getCookies()[cookieIndex];
+                token = cookie.getValue();
                 try {
-                    username = jwtService.extractUsername(cookie.get().getValue());
+                    username = jwtService.extractUsername(cookie.getValue());
                 } catch (IllegalArgumentException e) {
                     logger.info("Illegal Argument while fetching the username !!");
-                    e.printStackTrace();
                 } catch (ExpiredJwtException e) {
                     logger.info("Given jwt token is expired !!");
-                    e.printStackTrace();
+                    try {
+                        String[] info = generateAccessToken(request,response,cookieIndex);
+                        token = info[0];
+                        username = info[1];
+                    }
+                    catch (Exception ex){
+                        logger.info(ex.getMessage());
+                    }
                 } catch (MalformedJwtException e) {
                     logger.info("Some changed has done in token !! Invalid Token");
-                    e.printStackTrace();
                 } catch (Exception e) {
                     logger.info(e.getMessage());
-                    e.printStackTrace();
                 }
             }
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
@@ -73,5 +87,23 @@ public class JwtFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request,response);
+    }
+
+    public String[] generateAccessToken(HttpServletRequest request,HttpServletResponse response,int oldCookieIndex) throws CookieNotFoundException, NotFoundException, UnauthorizedAccessException {
+        String refreshToken = cookieService.extractRefreshTokenCookie(request);
+        String userId = cookieService.extractUserIdCookie(request);
+
+        if (!refreshTokenService.validateToken(userId, refreshToken)){
+            throw new UnauthorizedAccessException("Either refresh token is invalid or refresh token is expired.");
+        }
+        refreshTokenService.delete(refreshToken);
+        User user = userService.getById(userId);
+
+        Cookie newCookie = cookieService.generateJwtCookie(user.getUsername());
+        request.getCookies()[oldCookieIndex].setValue(newCookie.getValue());
+        response.addCookie(newCookie);
+        response.addCookie(cookieService.generateRefreshTokenCookie(user.getUserId()));
+
+        return new String[]{newCookie.getValue(),user.getUsername()};
     }
 }

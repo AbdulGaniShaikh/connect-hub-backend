@@ -18,7 +18,7 @@ import java.util.function.Function;
 
 @Service
 public class JwtService {
-    public long JWT_TOKEN_VALIDITY = Duration.ofDays(30).toMillis();
+    public long JWT_TOKEN_VALIDITY = Duration.ofMinutes(10).toMillis();
 
     public static String SECRET = "w3Yz0Hx7T8B1Dj1KeFVvXn6OyP9fRrSdUcNlAeIgZbM2L5JtGQ4WmYsCp";
 

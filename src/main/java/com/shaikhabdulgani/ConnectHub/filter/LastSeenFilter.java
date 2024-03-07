@@ -44,9 +44,7 @@ public class LastSeenFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         try {
             basicUserService.updateLastSeen(jwtService.extractUsername(cookieService.extractJwtCookie(request)));
-        } catch (Exception e) {
-            logger.info(e.getMessage());
-        }
+        } catch (Exception ignored) {}
         filterChain.doFilter(request,response);
     }
 }

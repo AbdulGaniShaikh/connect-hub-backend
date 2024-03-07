@@ -5,9 +5,11 @@ import com.shaikhabdulgani.ConnectHub.exception.NotFoundException;
 import com.shaikhabdulgani.ConnectHub.exception.UnauthorizedAccessException;
 import com.shaikhabdulgani.ConnectHub.model.User;
 import com.shaikhabdulgani.ConnectHub.model.UserInfoDetail;
+import com.shaikhabdulgani.ConnectHub.projection.LastSeenProjection;
 import com.shaikhabdulgani.ConnectHub.projection.UserProjection;
 import com.shaikhabdulgani.ConnectHub.repo.UserRepo;
 import com.shaikhabdulgani.ConnectHub.util.enums.AuthenticationMethod;
+import io.jsonwebtoken.ExpiredJwtException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -112,7 +114,13 @@ public class BasicUserService implements UserDetailsService {
     }
 
     public void checkIfUserIsAuthorized(User user, String token) throws UnauthorizedAccessException {
-        if (!jwtService.extractUsername(token).equals(user.getUsername())){
+        String username;
+        try{
+            username = jwtService.extractUsername(token);
+        }catch (ExpiredJwtException ex){
+            throw new UnauthorizedAccessException("Expired Session. Please login again");
+        }
+        if (!username.equals(user.getUsername())){
             throw new UnauthorizedAccessException("JWT Token doesn't match the expected JWT Token");
         }
     }
@@ -123,9 +131,8 @@ public class BasicUserService implements UserDetailsService {
 
     }
 
-    public boolean getUserIsVerified(String userId, String token) throws NotFoundException, UnauthorizedAccessException {
+    public boolean getUserIsVerified(String userId) throws NotFoundException {
         User user = getById(userId);
-        checkIfUserIsAuthorized(user,token);
         return user.isVerified();
     }
 
@@ -153,5 +160,9 @@ public class BasicUserService implements UserDetailsService {
         update.inc("totalFriends");
         Query query = new Query(Criteria.where("_id").is(userId));
         mongoTemplate.updateFirst(query,update, User.class);
+    }
+
+    public LastSeenProjection getLastSeen(String userId) {
+        return userRepo.getLastSeen(userId);
     }
 }
