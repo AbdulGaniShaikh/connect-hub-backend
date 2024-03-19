@@ -4,7 +4,9 @@ import com.shaikhabdulgani.ConnectHub.filter.JwtAuthEntryPoint;
 import com.shaikhabdulgani.ConnectHub.filter.JwtFilter;
 import com.shaikhabdulgani.ConnectHub.service.PasswordEncoderService;
 import com.shaikhabdulgani.ConnectHub.service.BasicUserService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -39,19 +41,16 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@RequiredArgsConstructor
 public class SecurityConfig{
 
-    @Autowired
-    private JwtAuthEntryPoint entryPoint;
+    private final JwtAuthEntryPoint entryPoint;
+    private final JwtFilter jwtFilter;
+    private final PasswordEncoderService encoder;
+    private final BasicUserService userService;
 
-    @Autowired
-    private JwtFilter jwtFilter;
-
-    @Autowired
-    private PasswordEncoderService encoder;
-
-    @Autowired
-    private BasicUserService userService;
+    @Value( "${client.url:http://localhost:3000}" )
+    private String clientUrl;
 
     /**
      * Configures the security filter chain for the application.
@@ -65,6 +64,7 @@ public class SecurityConfig{
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         String[] authFreeUrl = new String[]{
+                "/api/server-status",
                 "/api/auth/**",
                 "/api/image/**",
                 "/swagger-ui/**",
@@ -144,7 +144,7 @@ public class SecurityConfig{
                 registry.addMapping("/**")
                         .allowCredentials(true)
                         .allowedMethods("*")
-                        .allowedOrigins("http://localhost:3000");
+                        .allowedOrigins("http://localhost:3000",clientUrl);
             }
         };
     }

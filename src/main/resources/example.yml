@@ -1,6 +1,11 @@
 server :
   port : 8081 #your desired port number
 
+client:
+  url: #your front-end url
+
+jwt:
+  secret: #secret key for jwt
 
 spring :
   mail :
