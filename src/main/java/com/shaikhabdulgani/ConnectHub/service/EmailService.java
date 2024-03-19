@@ -1,6 +1,7 @@
 package com.shaikhabdulgani.ConnectHub.service;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cglib.beans.BeanMap;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -15,6 +16,9 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
 
+    @Value( "${client.url:http://localhost:3000}" )
+    private String clientUrl;
+
     private void sendMail(String to, String sub, String body){
         SimpleMailMessage message = new SimpleMailMessage();
 
@@ -28,7 +32,7 @@ public class EmailService {
 
     @Async
     public void sendVerificationLink(String to,String token){
-        String link = String.format("http://localhost:3000/verify-account/%s?token=%s", to,token);
+        String link = String.format("%s/verify-account/%s?token=%s",clientUrl, to,token);
         String message = "To verify your email please click the following link\n"+link;
         String subject = "Verify your email address";
         sendMail(to,subject,message);

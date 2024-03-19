@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import io.jsonwebtoken.Jwts;
@@ -18,9 +19,11 @@ import java.util.function.Function;
 
 @Service
 public class JwtService {
+
     public long JWT_TOKEN_VALIDITY = Duration.ofMinutes(10).toMillis();
 
-    public static String SECRET = "w3Yz0Hx7T8B1Dj1KeFVvXn6OyP9fRrSdUcNlAeIgZbM2L5JtGQ4WmYsCp";
+    @Value( "${jwt.secret:http://localhost:3000}" )
+    public String secret;
 
     public String generateToken(String userName) {
         Map<String, Object> claims = new HashMap<>();
@@ -37,7 +40,7 @@ public class JwtService {
     }
 
     private Key getSignKey() {
-        byte[] keyBytes= Decoders.BASE64.decode(SECRET);
+        byte[] keyBytes= Decoders.BASE64.decode(secret);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
