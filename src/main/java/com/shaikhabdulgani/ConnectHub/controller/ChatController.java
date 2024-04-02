@@ -41,4 +41,16 @@ public class ChatController {
         }
         return message;
     }
+
+    @MessageMapping("/notification")
+    public Message sendNotification(@Payload @Valid MessageDto messageDto){
+        messageDto.setChatId(messageService.getChatId(messageDto.getSenderId(),messageDto.getReceiverId()));
+        Message message = messageService.saveMessage(messageDto);
+
+        simpMessagingTemplate.convertAndSendToUser(messageDto.getReceiverId(),"/private",message);
+        if (!messageDto.getReceiverId().equals(message.getSenderId())) {
+            simpMessagingTemplate.convertAndSendToUser(messageDto.getSenderId(), "/private", message);
+        }
+        return message;
+    }
 }

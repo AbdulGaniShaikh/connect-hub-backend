@@ -170,4 +170,9 @@ public class AuthController {
     ) throws UnauthorizedAccessException, NotFoundException, TokenExpiredException {
         return ApiResponse.success(userService.verifyOTP(email,req));
     }
+
+    @GetMapping("/refresh-token")
+    public ApiResponse<Boolean> useRefreshToken(HttpServletRequest request,HttpServletResponse response) throws UnauthorizedAccessException, NotFoundException, CookieNotFoundException {
+        return ApiResponse.success(userService.consumeRefreshToken(request,response));
+    }
 }

@@ -12,5 +12,6 @@ import java.util.Optional;
 public interface UnreadMessageCountRepo extends MongoRepository<UnreadMessageCount,String> {
 
     Optional<UnreadMessageCount> findByReceiverIdAndSenderId(String receiver, String sender);
+    boolean existsBySenderIdAndReceiverId(String senderId,String receiverId);
 
 }

@@ -6,6 +6,9 @@ import com.shaikhabdulgani.ConnectHub.model.Otp;
 import com.shaikhabdulgani.ConnectHub.model.Token;
 import com.shaikhabdulgani.ConnectHub.model.User;
 import com.shaikhabdulgani.ConnectHub.util.DefaultDescription;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,6 +25,8 @@ public class UserService {
     private final EmailService emailService;
     private final ImageService imageService;
     private final OtpService otpService;
+    private final CookieService cookieService;
+    private final RefreshTokenService refreshTokenService;
 
     public User registerUser(SignUpDto req) throws AlreadyExistsException {
 
@@ -147,6 +152,22 @@ public class UserService {
 
         user.setPassword(passwordRequest.getNewPassword());
         basicUserService.updateWithPassword(user);
+        return true;
+    }
+
+    public boolean consumeRefreshToken(HttpServletRequest request, HttpServletResponse response) throws CookieNotFoundException, NotFoundException, UnauthorizedAccessException {
+        String refreshToken = cookieService.extractRefreshTokenCookie(request);
+        String userId = cookieService.extractUserIdCookie(request);
+
+        if (!refreshTokenService.validateToken(userId, refreshToken)){
+            throw new UnauthorizedAccessException("Either refresh token is invalid or refresh token is expired.");
+        }
+        refreshTokenService.delete(refreshToken);
+        User user = basicUserService.getById(userId);
+
+        response.addCookie(cookieService.generateJwtCookie(user.getUsername()));
+        response.addCookie(cookieService.generateRefreshTokenCookie(user.getUserId()));
+
         return true;
     }
 }

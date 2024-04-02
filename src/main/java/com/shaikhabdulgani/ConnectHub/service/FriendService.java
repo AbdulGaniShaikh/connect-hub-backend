@@ -98,14 +98,21 @@ public class FriendService {
         basicUserService.decrementFriendCounter(friend.getUser2());
     }
 
-    public void save(String user1,String user2){
-        countService.save(friendRepo.save(new Friend(user1,user2)));
+    public Friend save(String user1,String user2){
+        return friendRepo.save(new Friend(user1,user2));
     }
 
     public void createFriendshipFromRequest(FriendRequest request){
 
-        save(request.getReceiver(),request.getSender());
-        save(request.getSender(),request.getReceiver());
+        Friend friend1 = save(request.getReceiver(),request.getSender());
+        Friend friend2 = save(request.getSender(),request.getReceiver());
+
+        if(!countService.exists(request.getSender(),request.getReceiver())){
+            countService.save(friend1);
+        }
+        if(!countService.exists(request.getReceiver(),request.getSender())){
+            countService.save(friend2);
+        }
         basicUserService.incrementFriendCounter(request.getReceiver());
         basicUserService.incrementFriendCounter(request.getSender());
 

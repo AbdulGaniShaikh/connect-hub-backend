@@ -5,7 +5,6 @@ import com.shaikhabdulgani.ConnectHub.projection.LastSeenProjection;
 import com.shaikhabdulgani.ConnectHub.projection.UserProjection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.mongodb.core.aggregation.ArrayOperators;
 import org.springframework.data.mongodb.repository.Aggregation;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
@@ -15,6 +14,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Date;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 @Repository
 @EnableMongoRepositories
@@ -37,7 +37,7 @@ public interface UserRepo extends MongoRepository<User,String> {
     void setIsVerifyById(String userId,boolean isVerified);
 
     @Query(fields = "{ 'password' : 0 } ")
-    Page<UserProjection> findByUsernameRegex(String username, Pageable pageable);
+    Page<UserProjection> findByUsernameRegex(Pattern username, Pageable pageable);
 
     @Aggregation(pipeline = {
             "{ $match: { _id: ObjectId( ?0 ) } }",

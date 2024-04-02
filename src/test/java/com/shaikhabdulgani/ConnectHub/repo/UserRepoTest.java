@@ -15,6 +15,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import java.util.Date;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
@@ -121,8 +122,9 @@ class UserRepoTest {
     @Test
     public void test_findByUsernameRegex_Return2Users() {
 
-        String username = ".*" + "teh" + ".*";
-        Page<UserProjection> page = userRepo.findByUsernameRegex(username, Pageable.ofSize(10));
+        Pattern pattern = Pattern.compile(".*" + "teh" + ".*", Pattern.CASE_INSENSITIVE);
+
+        Page<UserProjection> page = userRepo.findByUsernameRegex(pattern, Pageable.ofSize(10));
         page.forEach(user -> System.out.println(user.toString()));
         assertThat(page.getTotalElements()).isEqualTo(2);
 
@@ -131,8 +133,9 @@ class UserRepoTest {
     @Test
     public void test_findByUsernameRegex_Return1Users() {
 
-        String username = ".*" + "h2" + ".*";
-        Page<UserProjection> page = userRepo.findByUsernameRegex(username, Pageable.ofSize(10));
+        Pattern pattern = Pattern.compile(".*" + "h2" + ".*", Pattern.CASE_INSENSITIVE);
+
+        Page<UserProjection> page = userRepo.findByUsernameRegex(pattern, Pageable.ofSize(10));
         page.forEach(user -> System.out.println(user.toString()));
         assertThat(page.getTotalElements()).isEqualTo(1);
 
