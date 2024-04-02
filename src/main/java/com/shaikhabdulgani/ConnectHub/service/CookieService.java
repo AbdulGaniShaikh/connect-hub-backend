@@ -4,6 +4,7 @@ import com.shaikhabdulgani.ConnectHub.exception.CookieNotFoundException;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -19,6 +20,9 @@ public class CookieService {
 
     private final RefreshTokenService refreshTokenService;
     private final JwtService jwtService;
+
+//    @Value( "${backend.domain:localhost}" )
+    private String domain = "localhost";
 
     /**
      * Extracts the value of the specified cookie from the provided HttpServletRequest.
@@ -84,6 +88,8 @@ public class CookieService {
         cookie.setSecure(true);
         cookie.setHttpOnly(true);
         cookie.setPath("/");
+        cookie.setAttribute("SameSite","None");
+        cookie.setDomain(domain);
         return cookie;
     }
 
@@ -98,6 +104,8 @@ public class CookieService {
         cookie.setSecure(true);
         cookie.setHttpOnly(true);
         cookie.setPath("/");
+        cookie.setAttribute("SameSite","None");
+        cookie.setDomain(domain);
         return cookie;
     }
 
@@ -111,6 +119,8 @@ public class CookieService {
         Cookie cookie = new Cookie(USERID_COOKIE_NAME,userId);
         cookie.setSecure(true);
         cookie.setPath("/");
+        cookie.setAttribute("SameSite","None");
+        cookie.setDomain(domain);
         return cookie;
     }
 
@@ -124,6 +134,9 @@ public class CookieService {
         Cookie cookie = new Cookie(name,null);
         cookie.setMaxAge(0);
         cookie.setPath("/");
+        cookie.setSecure(true);
+        cookie.setAttribute("SameSite","None");
+        cookie.setDomain(domain);
         return cookie;
     }
 

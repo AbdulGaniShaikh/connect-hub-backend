@@ -45,6 +45,10 @@ public class UnreadMessageCountService {
         return messageCount.orElseGet(UnreadMessageCount::new).getCount();
     }
 
+    public boolean exists(String sender,String receiver){
+        return repo.existsBySenderIdAndReceiverId(sender,receiver);
+    }
+
     public void increaseCount(String senderId,String receiverId){
         Update update = new Update();
         update.inc("count");

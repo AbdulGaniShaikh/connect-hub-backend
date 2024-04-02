@@ -4,6 +4,9 @@ server :
 client:
   url: #your front-end url
 
+backend:
+  domain: #backend domain here
+
 jwt:
   secret: #secret key for jwt
 

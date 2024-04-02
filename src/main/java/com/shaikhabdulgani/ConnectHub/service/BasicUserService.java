@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Date;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -126,9 +127,8 @@ public class BasicUserService implements UserDetailsService {
     }
 
     public Page<UserProjection> searchUser(String username, int pageNumber, int pageSize) {
-
-        return userRepo.findByUsernameRegex(".*" + username + ".*",PageRequest.of(pageNumber, pageSize));
-
+        Pattern pattern = Pattern.compile(".*" + username + ".*", Pattern.CASE_INSENSITIVE);
+        return userRepo.findByUsernameRegex(pattern, PageRequest.of(pageNumber, pageSize));
     }
 
     public boolean getUserIsVerified(String userId) throws NotFoundException {
