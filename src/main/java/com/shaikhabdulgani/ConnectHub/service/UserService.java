@@ -100,7 +100,7 @@ public class UserService {
 
     }
 
-    public String verifyUser(String email, String tokenStr) throws NotFoundException, TokenExpiredException {
+    public String verifyUser(String email, String tokenStr) throws NotFoundException, TokenExpiredException,UnauthorizedAccessException {
 
         User user = basicUserService.getByEmail(email);
         if(user.isVerified()){
