@@ -3,6 +3,7 @@ package com.shaikhabdulgani.ConnectHub.service;
 import com.shaikhabdulgani.ConnectHub.exception.ForbiddenException;
 import com.shaikhabdulgani.ConnectHub.exception.NotFoundException;
 import com.shaikhabdulgani.ConnectHub.exception.TokenExpiredException;
+import com.shaikhabdulgani.ConnectHub.exception.UnauthorizedAccessException;
 import com.shaikhabdulgani.ConnectHub.model.Token;
 import com.shaikhabdulgani.ConnectHub.repo.TokenRepo;
 import com.shaikhabdulgani.ConnectHub.util.UniqueId;
@@ -37,10 +38,10 @@ public class TokenService {
         return repo.save(token);
     }
 
-    public Token getTokenAndVerify(String userId, String tokenStr) throws NotFoundException {
+    public Token getTokenAndVerify(String userId, String tokenStr) throws NotFoundException,UnauthorizedAccessException {
         Token token = getToken(userId);
         if (!token.getToken().equals(tokenStr)) {
-            throw new NotFoundException("token doesn't match with the sent token");
+            throw new UnauthorizedAccessException("token doesn't match with the sent token");
         }
         return token;
     }

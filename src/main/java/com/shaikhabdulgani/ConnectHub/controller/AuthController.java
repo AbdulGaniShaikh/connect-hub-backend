@@ -123,7 +123,7 @@ public class AuthController {
     public ApiResponse<String> verifyEmail(
             @PathVariable String email,
             @RequestParam String token
-    ) throws AlreadyExistsException, TokenExpiredException, NotFoundException {
+    ) throws TokenExpiredException, NotFoundException,UnauthorizedAccessException {
         return ApiResponse.success(userService.verifyUser(email,token));
     }
 
